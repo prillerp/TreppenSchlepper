@@ -1,0 +1,113 @@
+TreppenSchlepper — Step Climbing Phases (side view, to scale)
+=============================================================
+Components:  OS = OuterShell (250×140 mm)     IS = SlidingInnerShell (250×80 mm)
+             FP = FootPlate (250×18 mm)        EC = ElevatorCylinder (stroke 180 mm)
+             HC = HorizontalCylinder (stroke 250 mm, body 120 mm)
+             o  = wheel (Ø 70 mm, axis 28 mm above OS lower edge → 7 mm clearance)
+
+Stair geometry (18/27):  rise = 180 mm,  tread depth = 270 mm
+Config B:  FP carries battery + MCU + sensors (8 kg);  OS is structure only (9 kg)
+Payload: 20 kg on OS.  Total moving mass Phase 2: 36 kg.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 1 — APPROACH  (wheels drive; tank steering via differential rotation)
+═══════════════════════════════════════════════════════════════════════════════
+
+    ╔═══════════════════════════════════════╗
+    ║              payload                  ║
+    ╟[HC━━━━━━━━]  ←contracted,             ║   HC sits in 60 mm gap between
+    ╟──┬──────────────────────────────────╢ ║   IS ceiling and OS ceiling;
+    ║  │   IS         [EC retracted]      ║ ║   rod tip connects to IS ceiling
+    ║  │  [FP: batt+MCU+sensors]          ║ ║   via bracket at IS rear face
+    ╚══╧══════════════════════════════════╝ ║
+   o  7mm gap (OS bottom above tread)     o ╝
+ ─────────────────────────────────────────────────────────    ┌──────────────
+                   lower tread / ground                        │  upper tread
+                                                     (rise 180 mm)
+ Note: IS+FP+EC fully retracted inside OS.
+       Wheel axes at 28 mm above OS lower edge.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 2 — ELEVATION  (EC extends, lifting IS + OS + payload together)
+═══════════════════════════════════════════════════════════════════════════════
+
+    ╔════════════════════════════════════╗
+    ║             payload               ║   IS + OS elevated together
+    ╟[HC━━━━━━━━] contracted            ║   to upper-tread height (+7 mm)
+    ╟──┬──────────────────────────────╢ ║
+    ║  │   IS      [EC↑↑ extending]  ║ ║                         ┌──────────
+   o║  │                             ║ ║o  ─────────────────────  │upper tread
+    ╚══╧═════════════════════════════╝ ║   ← 7 mm clearance above tread
+       │         ↑↑ EC ↑↑             │
+       │  IS anchor (rigid during P2) │   EC spans FP top → IS ceiling
+       │                              │   (total height ≈ 240 mm extended)
+ ──────┴──────────[FP]────────────────┴─────────────────────────
+               lower tread  ← FP stays anchored here
+               FP = reaction point for EC
+
+ Peak EC force: ~391 N.   Phase 2 duration: ~4.1 s.   Energy: ~70 J.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 3 — SLIDE FORWARD  (HC extends, pushing OS over upper tread)
+═══════════════════════════════════════════════════════════════════════════════
+
+                   ╔════════════════════════════════════╗
+    ┌────────────┐ ║             payload                ║
+    │            ├─╢bracket                             ║   OS advanced 250 mm
+    │     IS     │ ║[━━━━━━━━━HC rod━━━━━━━━━HC body━━]║   over upper step
+    │   [EC↑↑]   │ ╚════════════════════════════════════╝
+    │   [FP]     │                  o                  o
+ ───┴────────────┴───      ─────────────────────────────────────
+        lower tread                     upper tread
+   (IS + FP anchored here)
+   IS = HC reaction point
+
+ HC extends left-to-right: rod tip fixed at IS ceiling (left),
+ body fixed to OS rear (right).  Front wheel crosses step edge at t ≈ 0.29 s.
+ Min stability margin: +9.0 cm (device never tips for default params).
+ Peak HC force: ~49 N.   Phase 3 duration: ~1.0 s.   Energy: ~2.8 J.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ PHASE 4 — RETRACT  (FP freed; HC retracts pulling IS+FP back under OS)
+═══════════════════════════════════════════════════════════════════════════════
+
+    ╔════════════════════════════════════╗
+    ║              payload              ║   OS fully on upper tread
+    ╟[HC━━━━━━━━] ←contracting         ║   HC pulls IS+FP back inside OS
+    ╟──┬──────────────────────────────╢ ║   EC retracts simultaneously
+    ║  │   IS    [EC↓ retracting]    ║ ║   (lowers IS to OS floor height)
+    ║  │  [FP: batt+MCU+sensors]     ║ ║
+    ╚══╧══════════════════════════════╝ ║
+   o  7mm gap                         o ╝
+ ─────────────────────────────────────────────────────────────
+                    upper tread  ← device fully here, ready for next step
+
+ Peak EC force (P4): ~193 N.   Phase 4 duration: ~1.0 s.   Energy: ~32 J.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ SUMMARY — one full step cycle  (18/27 stair, 20 kg payload, Config B)
+═══════════════════════════════════════════════════════════════════════════════
+
+ Phase 1  ──wheels──►  Position in front of step           (variable duration)
+
+ Phase 2  ──EC↑──►    Lift IS+OS+payload to upper height   ~4.1 s   ~70 J
+                       FP anchored on lower tread
+                       Peak EC force: 391 N  (LINAK LA12 750 N rated ✓)
+
+ Phase 3  ──HC→──►    Push OS forward 250 mm over step     ~1.0 s    ~3 J
+                       IS+FP anchored; stability margin +9 cm throughout
+                       Peak HC force: 49 N  (requires rack/belt drive for 350 mm/s)
+
+ Phase 4  ──HC←──►    Retract IS+FP into OS; EC retracts   ~1.0 s   ~32 J
+                       FP lifted off lower tread first
+
+                       ────────────────────────────────────────────
+                       Total active time per step:   ~6.1 s
+                       Total energy per step:        ~105 J
+                       ────────────────────────────────────────────
+                       ▶ Repeat for next step

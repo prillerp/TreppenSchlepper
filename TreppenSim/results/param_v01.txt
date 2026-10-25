@@ -1,0 +1,52 @@
+@dataclass
+class StairParams:
+    """Geometry of a single stair step."""
+    rise_height: float = 0.18   # m  (typical 18 cm)
+    tread_depth: float = 0.27   # m  (typical 27 cm)
+
+
+@dataclass
+class MassParams:
+    """
+    Component masses (kg).
+
+    ElevatorCylinder is split: the upper part (piston rod + moving tube)
+    travels with the OuterShell in Phase 2; the lower part (cylinder body)
+    travels with the FootPlate assembly in Phase 4.
+    ec_upper_fraction controls that split (default 0.5 = equal halves).
+    """
+    m_outer_shell: float = 15.0     # kg  structural outer body
+    m_payload:     float = 21.0     # kg  cargo being transported (design point)
+    m_inner_shell: float = 4.0      # kg  SlidingInnerShell
+    m_foot_plate:  float = 2.0      # kg  FootPlate
+    m_elevator_cyl: float = 3.0     # kg  ElevatorCylinder total
+    ec_upper_fraction: float = 0.5  # fraction of EC mass that moves with OuterShell
+
+    @property
+    def m_ec_upper(self) -> float:
+        return self.m_elevator_cyl * self.ec_upper_fraction
+
+    @property
+    def m_ec_lower(self) -> float:
+        return self.m_elevator_cyl * (1.0 - self.ec_upper_fraction)
+
+    @property
+    def m_phase2(self) -> float:
+        """Moving mass for Phase 2 (Elevation): OuterShell + payload + upper EC."""
+        return self.m_outer_shell + self.m_payload + self.m_ec_upper
+
+    @property
+    def m_phase4(self) -> float:
+        """Moving mass for Phase 4 (Retraction): FootPlate + InnerShell + lower EC."""
+        return self.m_foot_plate + self.m_inner_shell + self.m_ec_lower
+
+
+@dataclass
+class ActuatorParams:
+    """
+    ElevatorCylinder motion profile parameters.
+    A trapezoidal velocity profile is used: accelerate → cruise → decelerate.
+    """
+    v_max: float = 0.05   # m/s   maximum lift speed
+    a_max: float = 0.10   # m/s²  maximum acceleration / deceleration
+    damping: float = 50.0  # N·s/m viscous damping (guides, seals, friction)
