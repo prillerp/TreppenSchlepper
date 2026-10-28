@@ -1,12 +1,14 @@
-# TreppenSchlepper — Plywood Prototype Build Plan v0.1
+# TreppenSchlepper — Plywood Prototype Build Plan v1.0
 
 > **Goal:** Validate the stair-climbing mechanism with real hardware.
-> Proof-of-concept, not final product. 5–10 kg payload. Plywood structure.
+> Proof-of-concept, not final product. **3 kg payload**. Plywood structure.
 >
 > **Tools available:** Standard workbench, drill press, jigsaw/circular saw,
 > hand tools, screwdrivers, soldering iron. **3D printer** for non-metallic parts.
 >
-> **Budget target:** < €800 (reduced BOM for proof-of-concept).
+> **Budget target:** < €500 (BOM total: ~€231, see `docs/bom_v01.md`)
+>
+> **System voltage:** 12 V DC (3S LiPo battery)
 
 ---
 
@@ -14,15 +16,17 @@
 
 ### What this prototype validates
 - Phase 2 elevation (EC lifts IS+OS)
-- Phase 3 horizontal advance (HC pushes OS forward)
-- Phase 4 retraction (EC+HC retract, FP rises)
+- Phase 3 horizontal advance (HC pushes OS forward via rack-and-pinion)
+- Phase 4a EC retraction (pulls FP up into IS; IS held by guide rails + HC)
+- Phase 4b HC retraction (pulls IS+EC+FP back into OS)
 - Basic stability on a single step
 - Actuator force/speed under real-world friction
+- Guide rail function (carry z-load during Phase 4a)
 
 ### What this prototype does NOT validate
 - Autonomous navigation (manual control only)
 - Multi-step continuous climbing (one step at a time)
-- Full payload (20+ kg) — structural limits of plywood
+- Heavy payload (>10 kg) — structural limits of plywood
 - Weatherproofing, safety systems
 
 ---
@@ -30,12 +34,12 @@
 ## 2. Structural Design — Plywood Construction
 
 All structural parts from **12 mm birch plywood** (strong, affordable, easy to cut/drill).
-Use **wood screws + wood glue** for permanent joints, **M5 bolts + T-nuts** for
-adjustable/removable connections.
+Use **wood screws + wood glue** for permanent joints, **M4 bolts** for adjustable
+connections.
 
 ### 2.1 OuterShell (OS)
 
-Open-top box, 250 × 400 × 140 mm (L × W × H).
+Open-top box, 250 × 250 × 140 mm (L × W × H).
 
 ```
            250 mm
@@ -43,44 +47,45 @@ Open-top box, 250 × 400 × 140 mm (L × W × H).
     │                  │  140 mm
     │    (open top)    │
     └──────────────────┘
-           400 mm wide (into page)
+           250 mm wide (into page)
 ```
 
 **Cut list (12 mm plywood):**
 
 | Part       | Dimensions (mm)  | Qty | Notes |
 |------------|------------------|-----|-------|
-| OS bottom  | 250 × 400        | 1   | Floor plate |
-| OS front   | 400 × 140        | 1   | Front wall |
-| OS back    | 400 × 140        | 1   | Rear wall |
+| OS bottom  | 250 × 250        | 1   | Floor plate |
+| OS front   | 250 × 140        | 1   | Front wall |
+| OS back    | 250 × 140        | 1   | Rear wall |
 | OS side L  | 226 × 140        | 1   | Left side (inside front+back) |
 | OS side R  | 226 × 140        | 1   | Right side |
 
-- Inside clear width: 400 − 2×12 = 376 mm
+- Inside clear width: 250 − 2×12 = 226 mm
 - Inside clear length: 250 − 2×12 = 226 mm
 - Assemble with glue + 4 mm wood screws (pre-drill to prevent splitting)
-- Drill holes for wheel motor mounts (see §4)
-- Drill slot for HC rod passage through OS back wall (12 × 30 mm slot)
-- Weight estimate: ~1.5 kg (plywood density ~680 kg/m³)
+- Mount guide rail (drawer slide) to each inside side wall
+- Drill holes for wheel motor mounts through front wall (see §4)
+- Drill slot for HC rack passage through OS back wall
+- Weight estimate: ~1.2 kg (plywood density ~680 kg/m³)
 
 ### 2.2 SlidingInnerShell (IS)
 
-Open-top tray that slides inside OS. Must clear OS inner walls.
+Tray that slides inside OS on guide rails (drawer slides).
 
-**Inside OS clear dimensions:** 226 × 376 mm
-**IS outer dimensions:** 220 × 370 × 80 mm (6 mm clearance total, 3 mm per side)
+**IS outer dimensions:** 220 × 230 × 80 mm (clearance for drawer slide mechanism)
 
 | Part       | Dimensions (mm)  | Qty | Notes |
 |------------|------------------|-----|-------|
-| IS bottom  | 220 × 370        | 1   | Floor plate |
-| IS front   | 370 × 80         | 1   | Front wall |
-| IS back    | 370 × 80         | 1   | Rear wall |
+| IS bottom  | 220 × 230        | 1   | Floor plate |
+| IS front   | 230 × 80         | 1   | Front wall |
+| IS back    | 230 × 80         | 1   | Rear wall |
 | IS side L  | 196 × 80         | 1   | Left side |
 | IS side R  | 196 × 80         | 1   | Right side |
 
-- IS slides on UHMWPE tape (adhesive-backed, applied to IS outer faces and OS inner faces)
-- Weight estimate: ~0.8 kg
-- Drill holes in IS ceiling area for EC top mount and HC rod attachment
+- IS rides on guide rails (one drawer slide on each side)
+- Weight estimate: ~0.7 kg
+- Add cross-beam between IS side walls at centre for EC top mount
+- Mount HC rack to IS ceiling (top of side walls)
 
 ### 2.3 FootPlate (FP)
 
@@ -88,25 +93,23 @@ Simple flat plate with anti-slip rubber on bottom.
 
 | Part       | Dimensions (mm)  | Qty | Notes |
 |------------|------------------|-----|-------|
-| FP base    | 220 × 370        | 1   | 12 mm plywood |
-| Rubber sheet | 220 × 370      | 1   | 3 mm anti-slip rubber, glued |
+| FP base    | 220 × 230        | 1   | 6 mm plywood |
+| Rubber sheet | 220 × 230      | 1   | 2 mm anti-slip rubber, glued |
 
-- Weight estimate: ~0.7 kg (plywood) + 0.2 kg (rubber)
-- For prototype: battery and MCU can sit on top of FP, strapped down
+- Weight estimate: ~0.4 kg (plywood) + 0.15 kg (rubber)
+- Battery and MCU sit on top of FP, strapped down
 - Drill centre hole for EC rod passage (Ø 20 mm)
-- Weight target with electronics: ~3 kg (vs 8 kg production — lighter for plywood strength)
+- Weight target with electronics: ~3 kg (lighter than production 5 kg)
 
-### 2.4 IS-to-OS Sliding Guide
+### 2.4 Guide Rails (IS-to-OS)
 
-Instead of expensive IGUS rails, use **UHMWPE adhesive tape** on contact surfaces.
+**250 mm full-extension ball-bearing drawer slides, 1 pair.**
 
-- Apply 25 mm wide UHMWPE tape strips to:
-  - IS outer side faces (both sides, full length)
-  - OS inner side faces (both sides, full length)
-  - IS bottom outer face (full width, 2 strips)
-  - OS bottom inner face (full width, 2 strips)
-- Coefficient of friction: ~0.15 (UHMWPE on plywood)
-- Cost: ~€8 for a roll of UHMWPE tape
+- Mount the fixed (outer) part to OS side walls
+- Mount the moving (inner) part to IS side walls
+- These carry IS+FP z-load during Phase 4a (when EC retracts and IS hangs from HC+rails)
+- Z-load: ~11 kg × 9.81 = ~108 N over 2 slides → ~54 N each (well within 15 kg/slide rating)
+- x-direction: low friction, allows IS to slide 250 mm in/out of OS
 
 ---
 
@@ -114,37 +117,20 @@ Instead of expensive IGUS rails, use **UHMWPE adhesive tape** on contact surface
 
 ### 3.1 ElevatorCylinder (EC)
 
-**TiMOTION TA2, 24 V, 180 mm stroke, 1000 N rated**
+**12 V lead-screw linear actuator, 200 mm stroke, 300 N rated, ~35 mm/s**
 
-Mounting:
-- **Bottom mount (FP):** Clevis pin through FP base plate. Drill 2 × Ø8 mm holes
-  in FP, 60 mm apart (centred). Use M8 bolt as clevis pin. Reinforce FP locally
-  with a 3 mm steel plate (100 × 100 mm) epoxied + screwed under the plywood.
-- **Top mount (IS ceiling):** Same clevis arrangement through IS ceiling
-  (top edges of IS side walls, with a plywood cross-beam between them).
-  IS cross-beam: 370 × 60 × 12 mm plywood, screwed between IS side walls at
-  the centre point (110 mm from each end).
-- EC retracted length: 285 mm. IS height (80 mm) + FP thickness (12 mm) +
-  rubber (3 mm) = 95 mm. Available space for EC = 95 mm (inside IS).
-  **Problem:** EC retracted length (285 mm) >> IS internal height (56 mm).
-
-**Critical dimension issue:** The EC retracted length (285 mm) does not fit
-inside the 80 mm tall IS. The EC must extend BELOW the FP or ABOVE the IS ceiling.
-
-**Solution:** EC mounts vertically BETWEEN FP bottom and IS cross-beam top,
-passing THROUGH the FP plate and IS bottom. The EC body sits exposed between
-FP and IS, enclosed by the space between them when extended.
+The EC retracted length (~180 mm for a 200 mm stroke cheap actuator) does not fit
+inside the 80 mm tall IS. The EC must extend between FP and IS, passing through
+both plates.
 
 ```
   Phase 1 (retracted):        Phase 2 (extended):
   ┌─────IS──────┐             ┌─────IS──────┐
-  │  ┌──EC──┐   │                            
+  │  ┌──EC──┐   │
   │  │      │   │             │  ┌──EC──┐   │
-  │  │      │   │             │  │      │   │
   ├──┤      ├───┤             │  │      │   │
   │FP│      │   │             │  │      │   │
   └──┤      ├───┘             │  │      │   │
-     │      │                 │  │      │   │
      └──────┘                 ├──┤      ├───┤
      ▓▓▓▓▓▓▓▓ ← step         │FP│      │   │
                               └──┤      ├───┘
@@ -152,84 +138,81 @@ FP and IS, enclosed by the space between them when extended.
                               ▓▓▓▓▓▓▓▓ ← step
 ```
 
-EC mounting revised:
-- EC bottom end: bolted to a 3 mm steel bracket on FP underside
-- EC top end: bolted to IS cross-beam (between IS side walls)
-- EC passes through holes in both FP top plate and IS bottom plate
-- When retracted: EC spans from FP bottom to IS top (~285 mm = FP_thick + gap + IS_height)
-- When extended: gap increases by 180 mm (rise height)
+Mounting:
+- **Bottom mount (FP):** Clevis bracket on FP underside. M6 bolt as clevis pin.
+  Reinforce FP locally with a 3D-printed load spreader plate.
+- **Top mount (IS ceiling):** Clevis bracket on IS cross-beam (plywood bar
+  between IS side walls, 230 × 50 × 12 mm, at centre).
+- EC passes through holes in both FP top plate and IS bottom plate.
 
-Implication for device height: retracted height ≈ 285 mm (EC) + 140 mm (OS above IS) = 425 mm.
+### 3.2 HorizontalCylinder (HC) — DIY Rack-and-Pinion
 
-### 3.2 HorizontalCylinder (HC) — Simplified for Prototype
+**JGA25-370 motor (12 V, 130 RPM) + M1 steel rack (250 mm) + M1/20T pinion**
 
-For the prototype, **abandon the 350 mm/s target**. Use a standard linear actuator
-at ~100–180 mm/s. Phase 3 will take ~2–3 s instead of ~1 s. Acceptable for PoC.
+The motor+pinion assembly mounts to OS (rigidly). The rack mounts to IS ceiling.
+When the motor turns, the pinion drives along the rack, pushing OS forward
+(or pulling IS back).
 
-**Candidate:** Generic 24 V mini linear actuator, 250 mm stroke, 100 N rated,
-~150 mm/s. Available on Amazon/AliExpress for ~€30–50.
-
-Alternative (cheaper, simpler): **Threaded rod + DC motor + 3D-printed nut housing.**
-- M8 threaded rod (8 mm lead, 1.25 mm pitch)
-- 24V DC motor with coupling
-- 3D-printed split nut housing with anti-backlash spring
-- Speed: depends on motor RPM. At 200 RPM: 200 × 1.25 mm/rev = 250 mm/min = 4.2 mm/s (too slow!)
-- Better: M8×8 lead screw (trapezoidal, 8 mm lead): 200 RPM × 8 mm/rev = 1600 mm/min = 27 mm/s
-- With a faster motor (1000 RPM): 133 mm/s — usable
-
-**Recommended for prototype:** Buy a 250 mm stroke mini linear actuator (~€40).
-Mount body to OS back wall (outside), rod tip to IS back wall (through OS slot).
+```
+  OS ceiling (top view):
+  ┌──────────────────────────────┐
+  │  [Motor+Pinion] ←OS mount   │
+  │       ↓ mesh                │
+  │  ═══════════════ ←rack on IS│
+  │                              │
+  └──────────────────────────────┘
+```
 
 Mounting:
-- OS back wall: drill 4 × M4 holes for actuator bracket (3D-printed)
-- IS back wall: drill 2 × M4 holes for rod clevis
-- Slot in OS back wall: 12 × 30 mm for rod passage
+- **Motor mount:** 3D-printed bracket, M3 screws to OS ceiling/back wall.
+  Motor sits in the 60 mm z-gap between IS ceiling and OS ceiling.
+- **Rack:** M3 screws along IS ceiling top surface. Rack teeth face downward.
+- **Pinion:** Press-fit or grub screw on motor 6 mm D-shaft.
+  PD = 20 mm → centre-to-centre = 10 mm from rack pitch line.
+
+Speed check: 130 RPM × π × 20 mm / 60 = 136 mm/s no-load → ~100 mm/s under load.
 
 ### 3.3 Actuator Summary (Prototype)
 
-| Actuator | Product | Est. price | Speed | Force |
-|----------|---------|-----------|-------|-------|
-| EC | TiMOTION TA2, 180 mm, 1000 N | €150 | 30–44 mm/s | 389 N peak |
-| HC | Mini linear actuator, 250 mm, 100 N | €40 | ~150 mm/s | 49 N peak |
+| Actuator | Product | Price | Speed | Peak force (3 kg) |
+|----------|---------|-------|-------|-------------------|
+| EC | 12 V lead-screw, 200 mm, 300 N | ~€25 | ~35 mm/s | 171 N |
+| HC | JGA25-370 + M1 rack-and-pinion | ~€20 | ~100 mm/s | 12.5 N |
 
 ---
 
 ## 4. Wheels & Drive
 
 ### 4.1 Wheels
-- 4 × Ø70 mm rubber wheels (Pololu or similar hobby wheels)
-- Front axle: 50 mm from OS front face
-- Rear axle: 200 mm from OS front face (50 mm from back)
+- 2 × Ø70 mm rubber **driven wheels** (front axle, 50 mm from OS front)
+- 2 × Ø70 mm (or similar) **passive casters** (rear, 200 mm from OS front)
 
 ### 4.2 Motors
-For the prototype at 5–10 kg payload, lower-cost motors suffice.
-Total device weight (no payload): ~8 kg. With 10 kg payload: 18 kg.
-Rolling resistance force: ~0.02 × 18 × 9.81 = 3.5 N total → 0.9 N per wheel.
-Torque per wheel: 0.9 N × 0.035 m = 0.03 N·m — very low.
+**2 × JGA25-370 DC gear motor, 12 V, 60 RPM, with Hall encoder**
 
-**Candidate:** JGA25-370 DC gear motor, 12V (run at 12V from buck converter off 24V battery),
-~200 RPM, 0.3 N·m stall torque. ~€8 each.
+Speed: 60 RPM × π × 70 mm / 60 = 220 mm/s ≈ 0.8 km/h
+Rolling resistance force: ~0.02 × 18 kg × 9.81 = 3.5 N total → 1.75 N/wheel
+Torque per wheel: 1.75 N × 0.035 m = 0.06 N·m — well within 0.5 N·m motor stall torque.
 
-Alternatively: Pololu micro metal gearmotor (cheaper, smaller, adequate for PoC).
+Differential steering: run left wheel faster than right (or vice versa) to turn.
+Encoder feedback enables closed-loop speed matching.
 
 ### 4.3 Wheel Mounting (3D Printed)
 
-3D-print motor brackets that attach motors to OS side walls.
+Each front motor bracket:
+- Bolts through OS front wall or side wall with M4 bolts
+- Motor press-fits into bracket cavity
+- Wheel hub adaptor couples 6 mm D-shaft to wheel bore
 
-Each bracket:
-- Clamps to OS side wall with M4 bolts (through-holes in plywood)
-- Motor press-fits or screw-mounts into bracket
-- Wheel hub adaptor (3D-printed or use Pololu hub)
-
-**Files to design:** `motor_bracket_front.stl`, `motor_bracket_rear.stl`
+Rear casters: standard small furniture casters, screw-mount to OS bottom.
 
 ### 4.4 Wheel positions
 
 ```
 OS side view:
 ┌────────────────────────────┐
-│     ○ rear        ○ front  │  ← wheels protrude 7mm below OS bottom
-│     200mm         50mm     │     (from OS front face)
+│  ○ caster       ○ driven   │  ← wheels protrude 7 mm below OS bottom
+│  200 mm         50 mm      │     (from OS front face)
 └────────────────────────────┘
       250 mm
 ```
@@ -238,178 +221,142 @@ OS side view:
 
 ## 5. Electronics — Minimal Prototype
 
-For proof-of-concept, simplify dramatically. Manual control via wired buttons
-or simple RC transmitter. No autonomous operation.
+Manual control via 8 wired buttons. No autonomous operation.
+All powered from **3S 11.1 V LiPo** (55 Wh).
 
 ### 5.1 Power
-- 24 V supply: Use **bench power supply** (24V / 5A) for initial testing.
-  Tethered operation — no onboard battery needed for first tests.
-- Later: 3S2P 18650 pack (11.1 V) + boost converter to 24 V,
-  or 6S LiFePO4 pack (19.2 V nominal, close enough for 24 V actuators).
+- **3S 11.1 V 5000 mAh LiPo** battery on FP
+- **Buck converter** 12 V→5 V for Arduino + sensors
+- 15 A inline fuse + toggle switch for power distribution
+- For bench testing: can also use a 12 V bench PSU (tethered)
 
 ### 5.2 Control
-- **Arduino Mega** or **ESP32** as MCU (€10–15)
-- 2 × **BTS7960 H-bridge** modules (€8 each) — one for EC, one for HC
-- 2 × **L298N dual H-bridge** modules (€5 each) — for 4 wheel motors
-  (L298N handles ~2A per channel, adequate for low-torque wheel motors)
-- **Wired control box** with 6 buttons:
+- **Arduino Mega 2560** clone as MCU (~€18)
+- **2 × BTS7960** H-bridge modules (~€2 each) — EC motor, HC motor
+- **1 × L298N** dual H-bridge (~€3) — left + right wheel motors
+- **8 wired control buttons:**
   - EC UP / EC DOWN
   - HC EXTEND / HC RETRACT
   - WHEELS FORWARD / WHEELS BACKWARD
-- **Emergency stop** button (cuts power to all motors)
+  - STEER LEFT / STEER RIGHT
+- **Emergency stop** (mushroom button, NC contact)
 
 ### 5.3 Sensors (Prototype Minimum)
-- **2 × limit switches** on EC (top and bottom of travel) — €2
-- **2 × limit switches** on HC (extended and retracted) — €2
-- **1 × IMU (MPU6050)** for tilt monitoring — €4
+- **4 × limit switches** (EC top, EC bottom, HC extended, HC retracted) — €4
+- **1 × MPU6050 IMU** for tilt monitoring — €1.50
 - No encoders, no ToF, no load cell for first prototype
 
 ### 5.4 Wiring
 
 ```
-24V PSU ──┬── BTS7960 #1 ── EC motor (2 wires)
-          ├── BTS7960 #2 ── HC motor (2 wires)
-          ├── L298N #1 ──── Wheel motor FL + FR (4 wires)
-          ├── L298N #2 ──── Wheel motor RL + RR (4 wires)
-          └── Buck 5V ──── Arduino + sensors
+12V LiPo ──┬── BTS7960 #1 ── EC motor (2 wires)
+            ├── BTS7960 #2 ── HC motor (2 wires)
+            ├── L298N ─────── Wheel L + R (4 wires)
+            └── Buck 5V ──── Arduino + sensors
 
 Arduino ──┬── BTS7960 #1: EN, RPWM, LPWM (3 pins)
           ├── BTS7960 #2: EN, RPWM, LPWM (3 pins)
-          ├── L298N #1: IN1-IN4, ENA, ENB (6 pins)
-          ├── L298N #2: IN1-IN4, ENA, ENB (6 pins)
+          ├── L298N: IN1-IN4, ENA, ENB (6 pins)
           ├── 4 × limit switches (4 digital inputs)
-          ├── MPU6050 (I2C: SDA, SCL)
-          └── 6 × control buttons (6 digital inputs)
+          ├── MPU6050 (I2C: SDA=20, SCL=21)
+          └── 8 × control buttons + E-stop (9 digital inputs)
 ```
 
----
-
-## 6. Bill of Materials — Prototype
-
-| # | Part | Qty | Unit € | Total € | Source |
-|---|------|-----|--------|---------|--------|
-| **Structural** | | | | | |
-| 1 | Birch plywood 12mm, 600×400 sheet | 2 | 8 | 16 | Hardware store |
-| 2 | UHMWPE adhesive tape 25mm × 5m | 1 | 8 | 8 | Amazon |
-| 3 | Anti-slip rubber sheet 3mm, 300×400 | 1 | 5 | 5 | Amazon |
-| 4 | Steel reinforcement plate 3mm, 100×100 | 2 | 3 | 6 | Hardware store |
-| 5 | 3D printer filament (PETG, ~200g) | 1 | 8 | 8 | — |
-| **Actuators** | | | | | |
-| 6 | TiMOTION TA2, 24V, 180mm, 1000N | 1 | 150 | 150 | LinearDirect.eu |
-| 7 | Mini linear actuator, 24V, 250mm, 100N | 1 | 40 | 40 | Amazon/AliExpress |
-| **Wheels & Drive** | | | | | |
-| 8 | Ø70mm rubber wheel | 4 | 5 | 20 | Amazon |
-| 9 | JGA25-370 DC gear motor 12V 200RPM | 4 | 8 | 32 | Amazon |
-| 10 | Wheel hub adaptor (3D printed) | 4 | 0 | 0 | — |
-| **Electronics** | | | | | |
-| 11 | Arduino Mega 2560 (clone) | 1 | 12 | 12 | Amazon |
-| 12 | BTS7960 H-bridge module | 2 | 8 | 16 | Amazon |
-| 13 | L298N dual H-bridge module | 2 | 5 | 10 | Amazon |
-| 14 | Buck converter 24V→5V | 1 | 4 | 4 | Amazon |
-| 15 | Limit switches (micro) | 4 | 1 | 4 | Amazon |
-| 16 | MPU6050 breakout | 1 | 4 | 4 | Amazon |
-| 17 | Push buttons (panel mount) | 7 | 1 | 7 | Amazon |
-| 18 | Emergency stop button (mushroom, NC) | 1 | 5 | 5 | Amazon |
-| 19 | Wire assortment (silicone, 18-22 AWG) | 1 | 12 | 12 | Amazon |
-| 20 | Connectors (XT60, JST, screw terminals) | 1 | 10 | 10 | Amazon |
-| **Fasteners** | | | | | |
-| 21 | Wood screws 4×30mm (box 100) | 1 | 5 | 5 | Hardware store |
-| 22 | M4×20 bolts + nuts (20 pcs) | 1 | 4 | 4 | Hardware store |
-| 23 | M5×30 bolts + T-nuts (10 pcs) | 1 | 5 | 5 | Hardware store |
-| 24 | M8×60 bolt (EC clevis pin) | 2 | 1 | 2 | Hardware store |
-| 25 | Misc (cable ties, heat shrink, tape) | 1 | 8 | 8 | — |
-| **Power (bench testing)** | | | | | |
-| 26 | 24V / 5A bench power supply | 1 | 35 | 35 | Amazon |
-| | | | | | |
-| | **TOTAL** | | | **€448** | |
-
-**Budget headroom to €800 target: €352** (for replacement parts, upgrades, 2nd HC attempt).
+**Flex cable note:** Battery and MCU are on FP, but wheel motors and HC motor
+are on OS. A flex cable harness (~6+ conductors) must loop between FP and OS
+with enough slack for 250 mm horizontal + 180 mm vertical travel.
 
 ---
 
-## 7. Assembly Sequence
+## 6. Assembly Sequence
 
 ### Phase A — Structure (Day 1–2)
 
 1. **Cut plywood** per cut lists (§2.1–2.3). Label all parts.
 2. **Assemble OS box:** Glue + screw front, back, sides to bottom plate.
    Let glue cure 4+ hours.
-3. **Assemble IS tray:** Same procedure. Verify IS slides into OS with
-   ~3 mm clearance per side.
-4. **Apply UHMWPE tape** to IS outer faces and OS inner faces.
-   Test sliding friction — IS should slide smoothly with light push.
-5. **Cut FP plate.** Glue rubber sheet to bottom. Drill EC passage hole (Ø20mm centre).
-6. **Add IS cross-beam** for EC top mount (§3.1).
+3. **Assemble IS tray:** Same procedure.
+4. **Mount guide rails:** Screw drawer slide outer rail to each OS side wall.
+   Screw inner rail to each IS side wall. Test: IS should slide smoothly
+   in and out of OS with light push.
+5. **Cut FP plate** (6 mm plywood). Glue rubber sheet to bottom.
+   Drill EC passage hole (Ø20 mm centre).
+6. **Add IS cross-beam** for EC top mount (230 × 50 × 12 mm plywood bar
+   between IS side walls at midpoint).
 
 ### Phase B — Actuators (Day 3–4)
 
-7. **Mount EC:** Attach bottom clevis to FP (with steel reinforcement plate).
-   Attach top clevis to IS cross-beam. Verify stroke: EC should lift IS+OS
-   by 180 mm from FP surface.
-8. **Mount HC:** Attach body bracket to OS back wall. Attach rod to IS back wall.
-   Verify stroke: HC should push OS 250 mm forward relative to IS.
-9. **Test actuators manually:** Connect each to bench PSU (24V). Verify direction,
-   speed, and full stroke. Measure actual speed with stopwatch.
+7. **Mount EC:** Attach bottom clevis to FP. Attach top clevis to IS cross-beam.
+   Verify: EC extends 180 mm (rise height), lifting IS+OS from FP.
+8. **Mount HC rack** to IS ceiling (M3 screws along IS side wall tops).
+   3D-print motor bracket, mount motor+pinion to OS.
+   Verify: motor drives OS 250 mm forward relative to IS.
+9. **Test actuators individually:** Connect each to 12 V supply. Verify
+   direction, speed, and full stroke.
 
 ### Phase C — Wheels & Drive (Day 4–5)
 
-10. **3D-print motor brackets** (4 pcs) and wheel hub adaptors (4 pcs).
-11. **Mount motors** to OS side walls using brackets + M4 bolts.
-12. **Attach wheels.** Verify OS rolls freely on flat surface.
-13. **Test wheel drive:** Connect motors to bench PSU via L298N. Verify
-    forward/backward, left/right turns.
+10. **3D-print motor brackets** (2 pcs) and wheel hub adaptors (2 pcs).
+11. **Mount driven motors** to OS front (through brackets + M4 bolts).
+12. **Mount rear casters** to OS bottom.
+13. **Attach driven wheels.** Verify OS rolls freely on flat surface.
+14. **Test wheel drive:** Connect motors to L298N. Verify forward, backward,
+    left turn, right turn.
 
 ### Phase D — Electronics (Day 5–6)
 
-14. **Wire motor drivers** per schematic (§5.4).
-15. **Flash Arduino** with basic manual-control firmware.
-16. **Wire control buttons** and emergency stop.
-17. **Mount limit switches** on EC and HC end-of-travel positions.
-18. **Test all functions** individually: EC up/down, HC extend/retract,
-    wheels forward/backward.
+15. **Wire motor drivers** per schematic (§5.4).
+16. **Flash Arduino** with `firmware/manual_control/manual_control.ino`.
+17. **Wire control buttons** (8 buttons + E-stop) to Arduino.
+18. **Mount limit switches** on EC and HC end-of-travel positions.
+19. **Strap battery to FP.** Wire power distribution (fuse + switch).
+20. **Test all functions** individually: EC up/down, HC extend/retract,
+    wheels forward/backward, steer left/right.
 
 ### Phase E — Integration Test (Day 7)
 
-19. **Build a test step:** One step from scrap wood, 18 cm rise × 27 cm tread.
-20. **Manual step-climb sequence:**
-    a. Drive up to step edge (wheels).
-    b. EC extend (Phase 2) — verify IS+OS lift together.
+21. **Build a test step:** One step from scrap wood, 18 cm rise × 27 cm tread.
+22. **Manual step-climb sequence:**
+    a. Drive up to step edge (wheels forward).
+    b. EC extend (Phase 2) — verify IS+OS lift together, FP stays on lower tread.
     c. HC extend (Phase 3) — verify OS slides forward, front wheels reach upper tread.
-    d. EC+HC retract (Phase 4) — verify FP lifts from lower tread.
-21. **Add 5 kg payload** (bag of sand/books on OS). Repeat step 20.
-22. **Add 10 kg payload.** Repeat step 20. Check for:
-    - Plywood flex/creak (structural adequacy)
-    - Sliding friction (IS in OS)
-    - Actuator speed under load
-    - Stability during Phase 3
+    d. EC retract (Phase 4a) — verify FP lifts toward IS (guide rails hold IS).
+    e. HC retract (Phase 4b) — verify IS+EC+FP slide back into OS.
+23. **Add 3 kg payload** (books on OS). Repeat step 22.
+24. **Observe and record:**
+    - Plywood flex (structural adequacy)
+    - Guide rail smoothness (sliding friction)
+    - Actuator speed under load vs simulation prediction
+    - Stability during Phase 3 (any visible tipping tendency)
+    - FP grip on step surface
 
 ---
 
-## 8. 3D-Printed Parts List
+## 7. 3D-Printed Parts List
 
 Design in FreeCAD or Fusion 360. Print in PETG (stronger than PLA, heat-resistant).
 
 | Part | Qty | Est. print time | Notes |
 |------|-----|-----------------|-------|
-| Motor bracket (front) | 2 | 2h each | Clamps to OS side wall |
-| Motor bracket (rear) | 2 | 2h each | Same design, different bolt hole spacing |
-| Wheel hub adaptor | 4 | 30min each | Couples motor shaft to wheel bore |
-| HC body bracket | 1 | 3h | Mounts HC actuator to OS back wall |
-| HC rod clevis | 1 | 1h | Connects HC rod to IS back wall |
-| Control box enclosure | 1 | 4h | Houses Arduino + buttons |
-| EC clevis reinforcement | 2 | 1h each | Distributes load at EC mount points |
-| **Total** | **13** | **~18h** | ~200g PETG |
+| Front wheel motor bracket | 2 | 2 h each | Bolts through OS front wall |
+| Wheel hub adaptor | 2 | 30 min each | 6 mm D-shaft to wheel bore |
+| HC motor bracket | 1 | 2 h | Mounts motor+pinion to OS ceiling area |
+| EC clevis bracket (top) | 1 | 1 h | Connects EC to IS cross-beam |
+| EC clevis bracket (bottom) | 1 | 1 h | Connects EC to FP |
+| Control box enclosure | 1 | 3 h | Houses Arduino + buttons |
+| Cable guide / strain relief | 2 | 30 min each | Routes flex cable between FP and OS |
+| **Total** | **10** | **~13 h** | ~100 g PETG |
 
 ---
 
-## 9. Test Step Construction
+## 8. Test Step Construction
 
 Build a single test step from construction lumber or scrap plywood.
 
 ```
         ┌─────────────┐
         │  upper tread │ 27 cm deep
-        │  (500mm wide)│
+        │  (400mm wide)│
   18cm  │             ┌┘
   rise  │             │
         │ lower tread │ 50 cm deep (approach + landing)
@@ -417,53 +364,55 @@ Build a single test step from construction lumber or scrap plywood.
 ```
 
 Materials:
-- 2 × 18mm plywood or OSB sheets, ~500 × 500 mm
-- 2 × construction timber 45×90mm, 500 mm long (risers)
+- 2 × 18 mm plywood or OSB sheets, ~400 × 400 mm
+- 2 × construction timber 45×90 mm, 400 mm long (risers)
 - Wood screws
 
 Cost: ~€15 from scrap/offcuts, or ~€25 new.
 
 ---
 
-## 10. Firmware — Manual Control Sketch
+## 9. Firmware
 
-Minimal Arduino sketch for manual button control. No autonomous operation.
-Each button directly drives the corresponding motor(s).
+Minimal Arduino sketch for manual 8-button control. No autonomous operation.
 
 **Key safety features in firmware:**
-- Limit switch interrupt: stops actuator immediately at end of travel
-- IMU tilt check: cuts all motors if tilt > 15° (emergency)
-- Emergency stop: hardware NC relay, cuts power bus
-- Soft current limit on H-bridges (set via PWM duty cycle limit)
+- Limit switch check: stops actuator at end of travel
+- IMU tilt check: cuts all motors if tilt > 15°
+- Emergency stop: NC contact, cuts all motor outputs
+- Differential steering: left/right buttons slow inner wheel for arc turns;
+  without forward/backward, steer buttons pivot in place
 
-Firmware file: `firmware/manual_control/manual_control.ino`
+Firmware file: `firmware/manual_control/manual_control.ino` (v0.2)
 
 ---
 
-## 11. Risk Register
+## 10. Risk Register
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Plywood too flexible under 10 kg | Mechanism binds | Add aluminium angle reinforcement to OS corners (€10) |
-| IS slides too rough | Phase 3/4 stall | More UHMWPE tape; add wax; widen clearance |
-| EC doesn't fit vertically | Cannot assemble | Mount EC partially external (see §3.1 revised layout) |
-| HC too slow (~150 mm/s) | Phase 3 takes 2 s | Acceptable for PoC; upgrade to rack-and-pinion later |
+| Plywood too flexible under load | Mechanism binds | Add aluminium angle reinforcement to OS corners (~€10) |
+| IS slides rough on guide rails | Phase 3/4 stall | Lubricate rails; check alignment; shim if needed |
+| EC retracted length > IS height | Cannot assemble | EC mounts externally between FP and IS (see §3.1) |
+| HC pinion skips on rack | Lost position | Add spring-loaded pressure on pinion; use steel rack (not plastic) |
 | Wheel motors too weak on carpet | Can't position | Test on hard floor only; add weight to FP for traction |
-| FP doesn't grip step surface | Slips during Phase 2 | Add higher-friction rubber; add suction cups |
-| Wires snag during Phase 3 | Motor stall / wire break | Route cables through 3D-printed cable guide with strain relief |
+| FP doesn't grip step surface | Slips during Phase 2 | Add higher-friction rubber; add rubber feet/bumps |
+| Flex cable snags | Wire break during phase transitions | Route through cable guide with strain relief loop |
+| Guide rails bind when loaded | Phase 4a fails | Check rail alignment carefully; ensure rails are parallel |
 
 ---
 
-## 12. Success Criteria
+## 11. Success Criteria
 
 **Minimum viable prototype (MVP):**
 - [ ] Device climbs one 18/27 step under manual control, no payload
-- [ ] Device climbs one 18/27 step with 5 kg payload
+- [ ] Device climbs one 18/27 step with 3 kg payload
 - [ ] Phase 3 stability: no tipping observed
-- [ ] All 4 phases complete in < 30 s total (manual control)
+- [ ] Phase 4a: FP successfully lifts into IS (guide rails hold)
+- [ ] All phases complete in < 30 s total (manual control)
 
 **Stretch goals:**
-- [ ] Climb with 10 kg payload
-- [ ] Semi-automated sequence (Arduino runs Phase 2→3→4 on single button press)
+- [ ] Climb with 5 kg payload
+- [ ] Semi-automated sequence (Arduino runs Phase 2→3→4a→4b on single button press)
 - [ ] Climb 2 consecutive steps
-- [ ] Measured EC force vs simulation comparison
+- [ ] Measured EC force / speed vs simulation comparison

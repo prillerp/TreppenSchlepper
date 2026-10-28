@@ -1,13 +1,17 @@
 // TreppenSchlepper prototype — manual button control
 // Arduino Mega 2560
 //
+// 2 driven front wheels (L298N dual H-bridge), 2 passive rear casters.
+// EC actuator (BTS7960 #1), HC motor (BTS7960 #2).
+// Differential steering: left/right buttons run one wheel faster than the other.
+//
 // Wiring:
 //   EC actuator  -> BTS7960 #1 (RPWM=2, LPWM=3, EN=4)
-//   HC actuator  -> BTS7960 #2 (RPWM=5, LPWM=6, EN=7)
-//   Wheel FL+FR  -> L298N #1   (IN1=22, IN2=23, ENA=8, IN3=24, IN4=25, ENB=9)
-//   Wheel RL+RR  -> L298N #2   (IN1=26, IN2=27, ENA=10, IN3=28, IN4=29, ENB=11)
+//   HC motor     -> BTS7960 #2 (RPWM=5, LPWM=6, EN=7)
+//   Wheel L+R    -> L298N      (IN1=22, IN2=23, ENA=8, IN3=24, IN4=25, ENB=9)
 //   Limit switches: EC_TOP=30, EC_BOT=31, HC_EXT=32, HC_RET=33 (NC, pull-up)
-//   Buttons: EC_UP=40, EC_DN=41, HC_EXT=42, HC_RET=43, WHL_FWD=44, WHL_BWD=45
+//   Buttons: EC_UP=40, EC_DN=41, HC_EXT=42, HC_RET=43,
+//            WHL_FWD=44, WHL_BWD=45, STEER_L=47, STEER_R=48
 //   E-stop: pin 46 (NC contact, pull-up — LOW = stopped)
 //   MPU6050: SDA=20, SCL=21
 
@@ -20,26 +24,18 @@ static const uint8_t EC_RPWM = 2;
 static const uint8_t EC_LPWM = 3;
 static const uint8_t EC_EN   = 4;
 
-// BTS7960 #2 — Horizontal Cylinder
+// BTS7960 #2 — Horizontal Cylinder (rack-and-pinion motor)
 static const uint8_t HC_RPWM = 5;
 static const uint8_t HC_LPWM = 6;
 static const uint8_t HC_EN   = 7;
 
-// L298N #1 — Front wheels (FL, FR)
-static const uint8_t WFL_IN1 = 22;
-static const uint8_t WFL_IN2 = 23;
-static const uint8_t WFL_ENA = 8;
-static const uint8_t WFR_IN1 = 24;
-static const uint8_t WFR_IN2 = 25;
-static const uint8_t WFR_ENB = 9;
-
-// L298N #2 — Rear wheels (RL, RR)
-static const uint8_t WRL_IN1 = 26;
-static const uint8_t WRL_IN2 = 27;
-static const uint8_t WRL_ENA = 10;
-static const uint8_t WRR_IN1 = 28;
-static const uint8_t WRR_IN2 = 29;
-static const uint8_t WRR_ENB = 11;
+// L298N — Front wheels (Left, Right)
+static const uint8_t WL_IN1 = 22;
+static const uint8_t WL_IN2 = 23;
+static const uint8_t WL_ENA = 8;
+static const uint8_t WR_IN1 = 24;
+static const uint8_t WR_IN2 = 25;
+static const uint8_t WR_ENB = 9;
 
 // Limit switches (NC — LOW when triggered)
 static const uint8_t LS_EC_TOP = 30;
@@ -55,11 +51,14 @@ static const uint8_t BTN_HC_RET  = 43;
 static const uint8_t BTN_WHL_FWD = 44;
 static const uint8_t BTN_WHL_BWD = 45;
 static const uint8_t BTN_ESTOP   = 46;
+static const uint8_t BTN_STEER_L = 47;
+static const uint8_t BTN_STEER_R = 48;
 
 // --- PWM speed settings (0-255) ---
-static const uint8_t EC_SPEED  = 255;  // full speed (PWM-limited by TA2 internally)
-static const uint8_t HC_SPEED  = 200;  // ~80% for gentler HC motion
-static const uint8_t WHL_SPEED = 180;  // ~70% wheel speed
+static const uint8_t EC_SPEED  = 255;
+static const uint8_t HC_SPEED  = 200;
+static const uint8_t WHL_SPEED = 180;
+static const uint8_t WHL_STEER_SLOW = 60;  // inner wheel during turn
 
 // --- Tilt safety ---
 static const float TILT_LIMIT_DEG = 15.0;
@@ -70,41 +69,36 @@ bool tilt_fault = false;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println(F("TreppenSchlepper manual control v0.1"));
+    Serial.println(F("TreppenSchlepper manual control v0.2"));
 
-    // Motor driver outputs
     uint8_t outputs[] = {
         EC_RPWM, EC_LPWM, EC_EN,
         HC_RPWM, HC_LPWM, HC_EN,
-        WFL_IN1, WFL_IN2, WFL_ENA,
-        WFR_IN1, WFR_IN2, WFR_ENB,
-        WRL_IN1, WRL_IN2, WRL_ENA,
-        WRR_IN1, WRR_IN2, WRR_ENB
+        WL_IN1, WL_IN2, WL_ENA,
+        WR_IN1, WR_IN2, WR_ENB
     };
     for (uint8_t p : outputs) {
         pinMode(p, OUTPUT);
         digitalWrite(p, LOW);
     }
 
-    // Limit switches and buttons (internal pull-up)
     uint8_t inputs[] = {
         LS_EC_TOP, LS_EC_BOT, LS_HC_EXT, LS_HC_RET,
         BTN_EC_UP, BTN_EC_DN, BTN_HC_EXT, BTN_HC_RET,
-        BTN_WHL_FWD, BTN_WHL_BWD, BTN_ESTOP
+        BTN_WHL_FWD, BTN_WHL_BWD, BTN_ESTOP,
+        BTN_STEER_L, BTN_STEER_R
     };
     for (uint8_t p : inputs) {
         pinMode(p, INPUT_PULLUP);
     }
 
-    // Enable BTS7960 modules
     digitalWrite(EC_EN, HIGH);
     digitalWrite(HC_EN, HIGH);
 
-    // MPU6050 init
     Wire.begin();
     Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x6B);  // PWR_MGMT_1
-    Wire.write(0x00);  // wake up
+    Wire.write(0x6B);
+    Wire.write(0x00);
     Wire.endTransmission();
 
     Serial.println(F("Ready. Hold buttons to drive."));
@@ -115,18 +109,12 @@ void allStop() {
     analogWrite(EC_LPWM, 0);
     analogWrite(HC_RPWM, 0);
     analogWrite(HC_LPWM, 0);
-    digitalWrite(WFL_IN1, LOW);
-    digitalWrite(WFL_IN2, LOW);
-    analogWrite(WFL_ENA, 0);
-    digitalWrite(WFR_IN1, LOW);
-    digitalWrite(WFR_IN2, LOW);
-    analogWrite(WFR_ENB, 0);
-    digitalWrite(WRL_IN1, LOW);
-    digitalWrite(WRL_IN2, LOW);
-    analogWrite(WRL_ENA, 0);
-    digitalWrite(WRR_IN1, LOW);
-    digitalWrite(WRR_IN2, LOW);
-    analogWrite(WRR_ENB, 0);
+    digitalWrite(WL_IN1, LOW);
+    digitalWrite(WL_IN2, LOW);
+    analogWrite(WL_ENA, 0);
+    digitalWrite(WR_IN1, LOW);
+    digitalWrite(WR_IN2, LOW);
+    analogWrite(WR_ENB, 0);
 }
 
 float readTilt() {
@@ -171,35 +159,51 @@ void driveHC(int dir) {
     }
 }
 
-void driveWheels(int dir) {
-    uint8_t speed = (dir != 0) ? WHL_SPEED : 0;
-    // All wheels same direction for forward/backward
-    if (dir > 0) {
-        digitalWrite(WFL_IN1, HIGH); digitalWrite(WFL_IN2, LOW);
-        digitalWrite(WFR_IN1, HIGH); digitalWrite(WFR_IN2, LOW);
-        digitalWrite(WRL_IN1, HIGH); digitalWrite(WRL_IN2, LOW);
-        digitalWrite(WRR_IN1, HIGH); digitalWrite(WRR_IN2, LOW);
-    } else if (dir < 0) {
-        digitalWrite(WFL_IN1, LOW); digitalWrite(WFL_IN2, HIGH);
-        digitalWrite(WFR_IN1, LOW); digitalWrite(WFR_IN2, HIGH);
-        digitalWrite(WRL_IN1, LOW); digitalWrite(WRL_IN2, HIGH);
-        digitalWrite(WRR_IN1, LOW); digitalWrite(WRR_IN2, HIGH);
-    } else {
-        digitalWrite(WFL_IN1, LOW); digitalWrite(WFL_IN2, LOW);
-        digitalWrite(WFR_IN1, LOW); digitalWrite(WFR_IN2, LOW);
-        digitalWrite(WRL_IN1, LOW); digitalWrite(WRL_IN2, LOW);
-        digitalWrite(WRR_IN1, LOW); digitalWrite(WRR_IN2, LOW);
+void driveWheels(int dir, bool steerLeft, bool steerRight) {
+    if (dir == 0) {
+        if (steerLeft || steerRight) {
+            // Pivot turn: one wheel forward, other backward
+            uint8_t speed = WHL_STEER_SLOW;
+            if (steerLeft) {
+                // Left wheel backward, right wheel forward
+                digitalWrite(WL_IN1, LOW);  digitalWrite(WL_IN2, HIGH);
+                digitalWrite(WR_IN1, HIGH); digitalWrite(WR_IN2, LOW);
+            } else {
+                // Left wheel forward, right wheel backward
+                digitalWrite(WL_IN1, HIGH); digitalWrite(WL_IN2, LOW);
+                digitalWrite(WR_IN1, LOW);  digitalWrite(WR_IN2, HIGH);
+            }
+            analogWrite(WL_ENA, speed);
+            analogWrite(WR_ENB, speed);
+        } else {
+            digitalWrite(WL_IN1, LOW); digitalWrite(WL_IN2, LOW);
+            digitalWrite(WR_IN1, LOW); digitalWrite(WR_IN2, LOW);
+            analogWrite(WL_ENA, 0);
+            analogWrite(WR_ENB, 0);
+        }
+        return;
     }
-    analogWrite(WFL_ENA, speed);
-    analogWrite(WFR_ENB, speed);
-    analogWrite(WRL_ENA, speed);
-    analogWrite(WRR_ENB, speed);
+
+    // Straight or arc drive
+    uint8_t speedL = WHL_SPEED;
+    uint8_t speedR = WHL_SPEED;
+    if (steerLeft)  speedL = WHL_STEER_SLOW;
+    if (steerRight) speedR = WHL_STEER_SLOW;
+
+    if (dir > 0) {
+        digitalWrite(WL_IN1, HIGH); digitalWrite(WL_IN2, LOW);
+        digitalWrite(WR_IN1, HIGH); digitalWrite(WR_IN2, LOW);
+    } else {
+        digitalWrite(WL_IN1, LOW); digitalWrite(WL_IN2, HIGH);
+        digitalWrite(WR_IN1, LOW); digitalWrite(WR_IN2, HIGH);
+    }
+    analogWrite(WL_ENA, speedL);
+    analogWrite(WR_ENB, speedR);
 }
 
 static unsigned long lastTiltCheck = 0;
 
 void loop() {
-    // E-stop check (NC contact: HIGH = OK, LOW = stopped)
     if (digitalRead(BTN_ESTOP) == LOW) {
         if (!estop_active) {
             Serial.println(F("*** E-STOP ACTIVE ***"));
@@ -213,7 +217,6 @@ void loop() {
         estop_active = false;
     }
 
-    // Tilt check every 200 ms
     if (millis() - lastTiltCheck > 200) {
         lastTiltCheck = millis();
         float tilt = readTilt();
@@ -234,13 +237,14 @@ void loop() {
         return;
     }
 
-    // Button-driven control (active LOW)
-    bool ec_up  = (digitalRead(BTN_EC_UP)   == LOW);
-    bool ec_dn  = (digitalRead(BTN_EC_DN)   == LOW);
-    bool hc_ext = (digitalRead(BTN_HC_EXT)  == LOW);
-    bool hc_ret = (digitalRead(BTN_HC_RET)  == LOW);
-    bool w_fwd  = (digitalRead(BTN_WHL_FWD) == LOW);
-    bool w_bwd  = (digitalRead(BTN_WHL_BWD) == LOW);
+    bool ec_up   = (digitalRead(BTN_EC_UP)   == LOW);
+    bool ec_dn   = (digitalRead(BTN_EC_DN)   == LOW);
+    bool hc_ext  = (digitalRead(BTN_HC_EXT)  == LOW);
+    bool hc_ret  = (digitalRead(BTN_HC_RET)  == LOW);
+    bool w_fwd   = (digitalRead(BTN_WHL_FWD) == LOW);
+    bool w_bwd   = (digitalRead(BTN_WHL_BWD) == LOW);
+    bool steer_l = (digitalRead(BTN_STEER_L) == LOW);
+    bool steer_r = (digitalRead(BTN_STEER_R) == LOW);
 
     if (ec_up)       driveEC(1);
     else if (ec_dn)  driveEC(-1);
@@ -250,9 +254,10 @@ void loop() {
     else if (hc_ret) driveHC(-1);
     else             driveHC(0);
 
-    if (w_fwd)       driveWheels(1);
-    else if (w_bwd)  driveWheels(-1);
-    else             driveWheels(0);
+    int wDir = 0;
+    if (w_fwd) wDir = 1;
+    else if (w_bwd) wDir = -1;
+    driveWheels(wDir, steer_l, steer_r);
 
     delay(10);
 }

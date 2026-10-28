@@ -214,47 +214,109 @@ def simulate_phase3(params: SimParams) -> Phase3Result:
     )
 
 
+# ── Phase 4b — HC retraction (horizontal, IS+EC+FP pulled into OS) ───────────
+
+@dataclass
+class Phase4bResult:
+    """Phase 4b: HC retracts, pulling IS+EC+FP horizontally into OS."""
+    mass: float        # kg
+    displacement: float  # m
+    duration: float    # s
+    F_peak: float      # N
+    E: float           # J
+
+
+def simulate_phase4b(params: SimParams) -> Phase4bResult:
+    """Simulate Phase 4b: HC retraction (horizontal)."""
+    hc = params.hc
+    m = params.mass.m_phase4_hc
+
+    t, x, xdot, xddot = trapezoid_profile(
+        displacement=hc.stroke,
+        v_max=hc.v_max,
+        a_max=hc.a_max,
+        dt=params.dt,
+    )
+    F = (
+        m * xddot
+        + hc.F_coulomb * np.sign(xdot)
+        + hc.damping * xdot
+    )
+    P = F * xdot
+    _integrate = getattr(np, "trapezoid", None) or np.trapz
+    E = float(_integrate(P, t))
+
+    return Phase4bResult(
+        mass=m,
+        displacement=hc.stroke,
+        duration=float(t[-1]),
+        F_peak=float(np.max(np.abs(F))),
+        E=E,
+    )
+
+
 # ── Full step cycle ───────────────────────────────────────────────────────────
 
 @dataclass
 class StepCycleResult:
-    """Combined results for one complete step cycle (phases 2 + 3 + 4)."""
+    """Combined results: phases 2 + 3 + 4a(EC) + 4b(HC)."""
     phase2: PhaseResult
     phase3: Phase3Result
-    phase4: PhaseResult
+    phase4a: PhaseResult     # EC retraction (vertical)
+    phase4b: Phase4bResult   # HC retraction (horizontal)
+
+    @property
+    def phase4(self) -> PhaseResult:
+        """Backward-compat alias."""
+        return self.phase4a
+
+    @property
+    def E_total(self) -> float:
+        return (self.phase2.E + self.phase3.E
+                + self.phase4a.E + self.phase4b.E)
 
     @property
     def total_energy(self) -> float:
-        return self.phase2.E + self.phase3.E + self.phase4.E
+        return self.E_total
+
+    @property
+    def t_total(self) -> float:
+        return (self.phase2.duration + self.phase3.duration
+                + self.phase4a.duration + self.phase4b.duration)
 
     @property
     def total_duration(self) -> float:
-        return (
-            self.phase2.duration
-            + self.phase3.duration
-            + self.phase4.duration
-        )
+        return self.t_total
 
     def summary(self) -> str:
-        e2, e3, e4 = self.phase2.E, self.phase3.E, self.phase4.E
+        e2 = self.phase2.E
+        e3 = self.phase3.E
+        e4a = self.phase4a.E
+        e4b = self.phase4b.E
         d2 = self.phase2.duration
         d3 = self.phase3.duration
-        d4 = self.phase4.duration
+        d4a = self.phase4a.duration
+        d4b = self.phase4b.duration
         lines = [
             "=== Full Step Cycle ===",
-            f"  Phase 2 - Elevation  : {e2:6.2f} J  {d2:.2f} s",
-            f"  Phase 3 - HC Advance : {e3:6.2f} J  {d3:.2f} s",
-            f"  Phase 4 - Retraction : {e4:6.2f} J  {d4:.2f} s",
-            "  " + "-" * 35,
-            f"  Total energy         : {self.total_energy:6.2f} J",
-            f"  Total duration       : {self.total_duration:.2f} s",
+            f"  Phase 2  - EC Lift    : {e2:6.2f} J  {d2:.2f} s",
+            f"  Phase 3  - HC Advance : {e3:6.2f} J  {d3:.2f} s",
+            f"  Phase 4a - EC Retract : {e4a:6.2f} J  {d4a:.2f} s",
+            f"  Phase 4b - HC Retract : {e4b:6.2f} J  {d4b:.2f} s",
+            "  " + "-" * 40,
+            f"  Total energy          : {self.E_total:6.2f} J",
+            f"  Total duration        : {self.t_total:.2f} s",
         ]
         return "\n".join(lines)
 
 
 def run_step_cycle(params: SimParams) -> StepCycleResult:
-    """Run all three active phases and return combined results."""
+    """Run all active phases and return combined results."""
     from .sim_1d import run_all as run_1d
-    phase2, phase4 = run_1d(params)
+    phase2, phase4a = run_1d(params)
     phase3 = simulate_phase3(params)
-    return StepCycleResult(phase2=phase2, phase3=phase3, phase4=phase4)
+    phase4b = simulate_phase4b(params)
+    return StepCycleResult(
+        phase2=phase2, phase3=phase3,
+        phase4a=phase4a, phase4b=phase4b,
+    )

@@ -25,12 +25,10 @@ os.makedirs("results", exist_ok=True)
 
 # ── Sweep configuration ───────────────────────────────────────────────────────
 
-PAYLOAD_KG = list(range(0, 110, 10))   # 0, 10, 20, … 100 kg
-DESIGN_POINT = 20.0                    # kg — highlighted in plots
-EC_RATED_N   = 1000.0                  # TiMOTION TA2 code A rated force
-# Max payload where EC peak force stays within EC_RATED_N
-# At 0 kg: ~191 N; slope ~9.9 N/kg → limit at ~82 kg
-EC_MAX_PAYLOAD_KG = 82.0
+PAYLOAD_KG = sorted(set(list(range(0, 35, 5)) + [3]))  # 0,3,5,10,…30 kg
+DESIGN_POINT = 3.0                     # kg — PoC payload, highlighted in plots
+EC_RATED_N   = 500.0                   # candidate EC actuator rated force
+EC_MAX_PAYLOAD_KG = (EC_RATED_N - 141) / 9.9  # ~36 kg at 500 N
 
 # ── Run sweep ─────────────────────────────────────────────────────────────────
 
@@ -41,21 +39,25 @@ for pl in PAYLOAD_KG:
     p.mass.m_payload = float(pl)
 
     cycle = run_step_cycle(p)
-    ph2, ph3, ph4 = cycle.phase2, cycle.phase3, cycle.phase4
+    ph2, ph3 = cycle.phase2, cycle.phase3
+    ph4a, ph4b = cycle.phase4a, cycle.phase4b
 
     results.append(dict(
         payload    = pl,
         e2         = ph2.E,
         e3         = ph3.E,
-        e4         = ph4.E,
+        e4a        = ph4a.E,
+        e4b        = ph4b.E,
         e_total    = cycle.total_energy,
         d2         = ph2.duration,
         d3         = ph3.duration,
-        d4         = ph4.duration,
+        d4a        = ph4a.duration,
+        d4b        = ph4b.duration,
         d_total    = cycle.total_duration,
         f_peak_ec2 = ph2.F_peak,
-        f_peak_ec4 = ph4.F_peak,
+        f_peak_ec4 = ph4a.F_peak,
         f_peak_hc  = ph3.F_peak,
+        f_peak_hc4 = ph4b.F_peak,
         stab_min   = ph3.min_stability_margin * 100,  # cm
         m_phase2   = ph2.mass,
         m_phase3   = ph3.mass_os_group,
@@ -71,11 +73,13 @@ for pl in PAYLOAD_KG:
 pl_arr   = np.array([r["payload"]    for r in results])
 e2_arr   = np.array([r["e2"]         for r in results])
 e3_arr   = np.array([r["e3"]         for r in results])
-e4_arr   = np.array([r["e4"]         for r in results])
+e4a_arr  = np.array([r["e4a"]        for r in results])
+e4b_arr  = np.array([r["e4b"]        for r in results])
 etot_arr = np.array([r["e_total"]    for r in results])
 d2_arr   = np.array([r["d2"]         for r in results])
 d3_arr   = np.array([r["d3"]         for r in results])
-d4_arr   = np.array([r["d4"]         for r in results])
+d4a_arr  = np.array([r["d4a"]        for r in results])
+d4b_arr  = np.array([r["d4b"]        for r in results])
 dtot_arr = np.array([r["d_total"]    for r in results])
 fec2_arr = np.array([r["f_peak_ec2"] for r in results])
 fec4_arr = np.array([r["f_peak_ec4"] for r in results])
@@ -92,7 +96,7 @@ CTOT = "#333333"
 fig, axes = plt.subplots(2, 3, figsize=(16, 10))
 fig.suptitle(
     "TreppenSchlepper — Parameter Sweep over Payload Mass\n"
-    "Fixed stair 18/27  |  rise = 18 cm  |  Config B",
+    "Fixed stair 18/27  |  rise = 18 cm  |  Config B  |  PoC design 3 kg",
     fontsize=13, fontweight="bold",
 )
 
@@ -116,7 +120,8 @@ def _base(ax, ylabel, title):
 ax = axes[0, 0]
 ax.plot(pl_arr, e2_arr,   "o-", color=C2,   lw=2, label="Phase 2 (EC lift)")
 ax.plot(pl_arr, e3_arr,   "s-", color=C3,   lw=2, label="Phase 3 (HC advance)")
-ax.plot(pl_arr, e4_arr,   "^-", color=C4,   lw=2, label="Phase 4 (EC retract)")
+ax.plot(pl_arr, e4a_arr,  "^-", color=C4,   lw=2, label="Phase 4a (EC retract)")
+ax.plot(pl_arr, e4b_arr,  "v-", color="#ff7f0e", lw=2, label="Phase 4b (HC retract)")
 ax.plot(pl_arr, etot_arr, "D-", color=CTOT, lw=2.5, label="Total")
 _base(ax, "Energy (J)", "Energy per Phase vs Payload")
 ax.legend(fontsize=7.5)
@@ -126,18 +131,21 @@ ax.legend(fontsize=7.5)
 ax = axes[0, 1]
 ax.plot(pl_arr, d2_arr,   "o-", color=C2,   lw=2, label="Phase 2 (EC lift)")
 ax.plot(pl_arr, d3_arr,   "s-", color=C3,   lw=2, label="Phase 3 (HC advance)")
-ax.plot(pl_arr, d4_arr,   "^-", color=C4,   lw=2, label="Phase 4 (EC retract)")
+ax.plot(pl_arr, d4a_arr,  "^-", color=C4,   lw=2, label="Phase 4a (EC retract)")
+ax.plot(pl_arr, d4b_arr,  "v-", color="#ff7f0e", lw=2, label="Phase 4b (HC retract)")
 ax.plot(pl_arr, dtot_arr, "D-", color=CTOT, lw=2.5, label="Total")
 _base(ax, "Duration (s)", "Duration per Phase vs Payload")
 ax.legend(fontsize=7.5)
 
 # ── Panel 3 — Stacked energy bar ─────────────────────────────────────────────
 
+C4B = "#ff7f0e"
 ax = axes[0, 2]
-w = 7.0
-ax.bar(pl_arr, e2_arr,              width=w, color=C2, label="Phase 2", edgecolor="k", lw=0.5)
-ax.bar(pl_arr, e3_arr, bottom=e2_arr,           width=w, color=C3, label="Phase 3", edgecolor="k", lw=0.5)
-ax.bar(pl_arr, e4_arr, bottom=e2_arr + e3_arr,  width=w, color=C4, label="Phase 4", edgecolor="k", lw=0.5)
+w = 3.5
+ax.bar(pl_arr, e2_arr,              width=w, color=C2, label="Ph2", edgecolor="k", lw=0.5)
+ax.bar(pl_arr, e3_arr, bottom=e2_arr,           width=w, color=C3, label="Ph3", edgecolor="k", lw=0.5)
+ax.bar(pl_arr, e4a_arr, bottom=e2_arr + e3_arr, width=w, color=C4, label="Ph4a", edgecolor="k", lw=0.5)
+ax.bar(pl_arr, e4b_arr, bottom=e2_arr + e3_arr + e4a_arr, width=w, color=C4B, label="Ph4b", edgecolor="k", lw=0.5)
 for x, e in zip(pl_arr, etot_arr):
     ax.text(x, e + 0.5, f"{e:.0f}", ha="center", va="bottom", fontsize=7)
 _base(ax, "Energy (J)", "Stacked Energy per Step")
@@ -147,22 +155,20 @@ ax.legend(fontsize=7.5)
 
 ax = axes[1, 0]
 ax.plot(pl_arr, fec2_arr, "o-", color=C2, lw=2, label="EC peak — Phase 2")
-ax.plot(pl_arr, fec4_arr, "^-", color=C4, lw=2, label="EC peak — Phase 4")
+ax.plot(pl_arr, fec4_arr, "^-", color=C4, lw=2, label="EC peak — Phase 4a")
 ax.plot(pl_arr, fhc_arr,  "s-", color=C3, lw=2, label="HC peak — Phase 3")
 ax.axhline(EC_RATED_N, **EC_KW,
-           label=f"TiMOTION TA2 rated ({EC_RATED_N:.0f} N)")
-ax.axvline(EC_MAX_PAYLOAD_KG, color="red", lw=1.5, ls="-.",
-           label=f"Max safe payload ({EC_MAX_PAYLOAD_KG:.0f} kg)")
-ax.fill_betweenx([0, ax.get_ylim()[1] if ax.get_ylim()[1] > 0 else 1300],
-                 EC_MAX_PAYLOAD_KG, pl_arr[-1],
-                 alpha=0.08, color="red", label="EC over-spec")
-ax.annotate(
-    f"Max payload\n~{EC_MAX_PAYLOAD_KG:.0f} kg",
-    xy=(EC_MAX_PAYLOAD_KG, EC_RATED_N),
-    xytext=(EC_MAX_PAYLOAD_KG + 8, EC_RATED_N + 60),
-    fontsize=8, color="red",
-    arrowprops=dict(arrowstyle="->", color="red", lw=1.2),
-)
+           label=f"EC actuator rated ({EC_RATED_N:.0f} N)")
+if EC_MAX_PAYLOAD_KG <= pl_arr[-1]:
+    ax.axvline(EC_MAX_PAYLOAD_KG, color="red", lw=1.5, ls="-.",
+               label=f"Max safe payload ({EC_MAX_PAYLOAD_KG:.0f} kg)")
+    ax.annotate(
+        f"Max payload\n~{EC_MAX_PAYLOAD_KG:.0f} kg",
+        xy=(EC_MAX_PAYLOAD_KG, EC_RATED_N),
+        xytext=(EC_MAX_PAYLOAD_KG - 8, EC_RATED_N + 40),
+        fontsize=8, color="red",
+        arrowprops=dict(arrowstyle="->", color="red", lw=1.2),
+    )
 _base(ax, "Peak force (N)", "Peak Actuator Forces vs Payload")
 ax.legend(fontsize=7.5)
 

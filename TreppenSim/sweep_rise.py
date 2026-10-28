@@ -51,22 +51,26 @@ for rise_cm in RISE_CM:
     p.hc.stroke = L_OS_CM / 100.0
 
     cycle = run_step_cycle(p)
-    ph2, ph3, ph4 = cycle.phase2, cycle.phase3, cycle.phase4
+    ph2, ph3 = cycle.phase2, cycle.phase3
+    ph4a, ph4b = cycle.phase4a, cycle.phase4b
 
     results.append(dict(
         rise_cm   = rise_cm,
         tread_cm  = tread * 100,
         e2        = ph2.E,
         e3        = ph3.E,
-        e4        = ph4.E,
+        e4a       = ph4a.E,
+        e4b       = ph4b.E,
         e_total   = cycle.total_energy,
         d2        = ph2.duration,
         d3        = ph3.duration,
-        d4        = ph4.duration,
+        d4a       = ph4a.duration,
+        d4b       = ph4b.duration,
         d_total   = cycle.total_duration,
         f_peak_ec = ph2.F_peak,
-        f_peak_ec4= ph4.F_peak,
+        f_peak_ec4= ph4a.F_peak,
         f_peak_hc = ph3.F_peak,
+        f_peak_hc4= ph4b.F_peak,
         stab_min  = ph3.min_stability_margin * 100,   # cm
         wct       = ph3.wheel_contact_time,
     ))
@@ -82,11 +86,13 @@ rise_arr    = np.array([r["rise_cm"]   for r in results])
 tread_arr   = np.array([r["tread_cm"]  for r in results])
 e2_arr      = np.array([r["e2"]        for r in results])
 e3_arr      = np.array([r["e3"]        for r in results])
-e4_arr      = np.array([r["e4"]        for r in results])
+e4a_arr     = np.array([r["e4a"]       for r in results])
+e4b_arr     = np.array([r["e4b"]       for r in results])
 etot_arr    = np.array([r["e_total"]   for r in results])
 d2_arr      = np.array([r["d2"]        for r in results])
 d3_arr      = np.array([r["d3"]        for r in results])
-d4_arr      = np.array([r["d4"]        for r in results])
+d4a_arr     = np.array([r["d4a"]       for r in results])
+d4b_arr     = np.array([r["d4b"]       for r in results])
 dtot_arr    = np.array([r["d_total"]   for r in results])
 fec_arr     = np.array([r["f_peak_ec"] for r in results])
 fec4_arr    = np.array([r["f_peak_ec4"]for r in results])
@@ -104,7 +110,7 @@ fig, axes = plt.subplots(2, 3, figsize=(16, 10))
 fig.suptitle(
     "TreppenSchlepper — Parameter Sweep over Stair Rise Heights\n"
     "Stair formula: tread = 63 − 2×rise  |  OS length = 25 cm  |  "
-    "Payload = 20 kg  |  Config B",
+    "Payload = 3 kg (PoC)  |  Config B",
     fontsize=13, fontweight="bold",
 )
 
@@ -140,7 +146,8 @@ def _legend_constraint(ax):
 ax = axes[0, 0]
 ax.plot(rise_arr, e2_arr, "o-", color=C2,   lw=2, label="Phase 2 (EC lift)")
 ax.plot(rise_arr, e3_arr, "s-", color=C3,   lw=2, label="Phase 3 (HC advance)")
-ax.plot(rise_arr, e4_arr, "^-", color=C4,   lw=2, label="Phase 4 (EC retract)")
+ax.plot(rise_arr, e4a_arr, "^-", color=C4,   lw=2, label="Phase 4a (EC retract)")
+ax.plot(rise_arr, e4b_arr, "v-", color="#ff7f0e", lw=2, label="Phase 4b (HC retract)")
 ax.plot(rise_arr, etot_arr, "D-", color=CTOT, lw=2.5, label="Total")
 _base(ax, "Energy (J)", "Energy per Phase vs Rise Height")
 _legend_constraint(ax)
@@ -150,18 +157,21 @@ _legend_constraint(ax)
 ax = axes[0, 1]
 ax.plot(rise_arr, d2_arr, "o-", color=C2,   lw=2, label="Phase 2 (EC lift)")
 ax.plot(rise_arr, d3_arr, "s-", color=C3,   lw=2, label="Phase 3 (HC advance)")
-ax.plot(rise_arr, d4_arr, "^-", color=C4,   lw=2, label="Phase 4 (EC retract)")
+ax.plot(rise_arr, d4a_arr, "^-", color=C4,   lw=2, label="Phase 4a (EC retract)")
+ax.plot(rise_arr, d4b_arr, "v-", color="#ff7f0e", lw=2, label="Phase 4b (HC retract)")
 ax.plot(rise_arr, dtot_arr, "D-", color=CTOT, lw=2.5, label="Total")
 _base(ax, "Duration (s)", "Duration per Phase vs Rise Height")
 _legend_constraint(ax)
 
 # ── Panel 3 — Stacked energy bar chart ───────────────────────────────────────
 
+C4B = "#ff7f0e"
 ax = axes[0, 2]
 w = 0.6
 ax.bar(rise_arr, e2_arr,              width=w, color=C2, label="Phase 2 (EC lift)",     edgecolor="k", lw=0.5)
-ax.bar(rise_arr, e3_arr, bottom=e2_arr,          width=w, color=C3, label="Phase 3 (HC)",         edgecolor="k", lw=0.5)
-ax.bar(rise_arr, e4_arr, bottom=e2_arr + e3_arr, width=w, color=C4, label="Phase 4 (EC retract)", edgecolor="k", lw=0.5)
+ax.bar(rise_arr, e3_arr, bottom=e2_arr,          width=w, color=C3, label="Phase 3 (HC fwd)",      edgecolor="k", lw=0.5)
+ax.bar(rise_arr, e4a_arr, bottom=e2_arr + e3_arr, width=w, color=C4, label="Phase 4a (EC retract)", edgecolor="k", lw=0.5)
+ax.bar(rise_arr, e4b_arr, bottom=e2_arr + e3_arr + e4a_arr, width=w, color=C4B, label="Phase 4b (HC retract)", edgecolor="k", lw=0.5)
 for x, e in zip(rise_arr, etot_arr):
     ax.text(x, e + 0.5, f"{e:.0f}", ha="center", va="bottom", fontsize=7)
 _base(ax, "Energy (J)", "Stacked Energy per Step")
@@ -171,10 +181,10 @@ _legend_constraint(ax)
 
 ax = axes[1, 0]
 ax.plot(rise_arr, fec_arr,  "o-", color=C2, lw=2, label="EC peak force — Phase 2")
-ax.plot(rise_arr, fec4_arr, "^-", color=C4, lw=2, label="EC peak force — Phase 4")
+ax.plot(rise_arr, fec4_arr, "^-", color=C4, lw=2, label="EC peak force — Phase 4a")
 ax.plot(rise_arr, fhc_arr,  "s-", color=C3, lw=2, label="HC peak force — Phase 3")
-ax.axhline(1000, color="gray", ls=":", lw=1.2, label="TiMOTION TA2 rated (1000 N)")
-ax.axhline(100, color="#888888", ls="-.", lw=1, label="HC candidate limit (100 N)")
+ax.axhline(500, color="gray", ls=":", lw=1.2, label="EC actuator candidate (500 N)")
+ax.axhline(100, color="#888888", ls="-.", lw=1, label="HC mechanism limit (100 N)")
 _base(ax, "Peak force (N)", "Peak Actuator Forces vs Rise Height")
 _legend_constraint(ax)
 
