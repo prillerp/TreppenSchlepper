@@ -319,6 +319,16 @@ HW         │ Battery │ Power Control │ Motors │ System Sensors │ Envir
 
 ---
 
+## License
+
+**MIT License** — see `LICENSE` in the repository root.
+
+- Anyone may use, modify, and distribute the software, designs, and documentation — including for commercial purposes.
+- No warranty of any kind is given. The authors cannot guarantee correctness or freedom from third-party rights.
+- Attribution required: any use or derivative work must include the original copyright notice and mention Peter Priller as the original author.
+
+---
+
 ## Python
 
 Always use `uv` instead of `pip` to run Python scripts (`uv run python ...`).
